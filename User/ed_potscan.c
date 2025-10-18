@@ -1,5 +1,6 @@
 #include "bsp.h"
-#include "ed_pot_sm.h"
+#include "ed_potscan.h"
+#include "channels.h"
 
 // Define how many timer ticks to wait for the MUX to settle.
 // This is a tunable parameter. Start with a small value.
@@ -75,7 +76,7 @@ void ed_pot_sm_next (ed_pot_sm_t *p) {
 
     case STATE_NEXT_CHANNEL:
         p->current_channel++;
-        if (p->current_channel >= 16) {
+        if (p->current_channel >= CHANNEL_COUNT) {
             // Scan is complete
             p->current_channel = 0;
             p->scan_complete = true;
