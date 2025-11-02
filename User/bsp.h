@@ -14,6 +14,24 @@
 
 #include "ch32x035.h"
 #include "uart_buffer.h"
+#include "channels.h"
+
+
+
+typedef int32_t ed_err_t;
+
+/* Definitions for error constants. */
+
+#define ED_OK          (0)
+#define ED_FAIL        (-1)
+
+/* smart arrays size macros, from linux kernel */
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) + __must_be_array(arr))
+/* &a[0] degrades to a pointer: a different type from an array */
+#define __must_be_array(a) BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
+#define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
+#define BUILD_BUG_ON_ZERO(e) (sizeof(struct { int:(-!!(e)); }))
+
 
 // --- Timer Definities ---
 
@@ -86,13 +104,20 @@
 //== I2C Configuration (I2C1) ================================================
 //=============================================================================
 
-#define I2C_PORT               I2C1
+// #define I2C_PORT               I2C1
 
-#define I2C_SCL_GPIO_PORT      GPIOA
-#define I2C_SCL_GPIO_PIN       GPIO_Pin_10
+// #define I2C_SCL_GPIO_PORT      GPIOA
+// #define I2C_SCL_GPIO_PIN       GPIO_Pin_10
 
-#define I2C_SDA_GPIO_PORT      GPIOA
-#define I2C_SDA_GPIO_PIN       GPIO_Pin_11
+// #define I2C_SDA_GPIO_PORT      GPIOA
+// #define I2C_SDA_GPIO_PIN       GPIO_Pin_11
+
+// Kies twee vrije BitBang pinnen. PA10 en PA11 zijn hier een goede keuze.
+#define I2C_BB_SCL_GPIO_PORT   GPIOA
+#define I2C_BB_SCL_GPIO_PIN    GPIO_Pin_10
+
+#define I2C_BB_SDA_GPIO_PORT   GPIOA
+#define I2C_BB_SDA_GPIO_PIN    GPIO_Pin_11
 
 
 //=============================================================================
@@ -170,7 +195,17 @@ void BSP_SPI_Init(void);
 /**
  * @brief Initializes I2C1 for communication with peripherals.
  */
-void BSP_I2C_Init(void);
+//void BSP_hardware_I2C_Init(void);
+void BSP_software_I2C_Init(void);
+ed_err_t bsp_i2c_master_transmit (const uint8_t dev_id, const uint8_t *buf, uint8_t len);
+/**
+ * @brief Scans the I2C bus for connected devices.
+ * @note    This function iterates through all possible 7-bit I2C addresses
+ *          and reports any devices that respond with an ACK.
+ *          The results are printed to the debug UART.
+ * @return  none
+ */
+void BSP_I2C_BB_Scan(void);
 
 /**
  * @brief Initializes ADC1 for reading analog signals.
@@ -194,32 +229,13 @@ void BSP_ADC_Init(void);
  */
 uint16_t BSP_ADC_Read(void);
 
-
-// --- Functie Prototypes (toevoegingen) ---
-void MIDI_SendByte_NonBlocking(uint8_t byte);
-
-void UART1_SendByte_NonBlocking(uint8_t byte);
-// set mux
-
-/**
- * @brief Defines the available analog multiplexer channels.
- */
-typedef enum {
-    CH_POT1 = 0,  ///< Channel for potentiometer 1
-    CH_POT2 = 1,  ///< Channel for potentiometer 2
-    // Voeg hier eventueel meer kanalen toe
-    CH_TEMP_SENSOR = 2,
-    CH_LIGHT_SENSOR = 3
-} channel_t;
-
 /**
  * @brief Sets the active channel on the analog multiplexer.
  * @param channel The channel to select. Must be of type channel_t.
  */
 void set_active_mux(const channel_t channel);
+void systick_init(void);
 void BSP_ADC_Diagnostic_Run(void);
-//extern UartRxQueue_t midiRxQueue;      // Nieuw
-//extern UartRxQueue_t debugRxQueue;     // Nieuw
 
 // --- Globale Queue Instanties ---
 extern UartTxQueue_t midiTxQueue;
@@ -244,5 +260,12 @@ void UART_RX_HandleIrq(USART_TypeDef* uart);
 
 // Interrupt Handler voor timer3, die 2000 Hz gaat
 void TIM3_Update_HandleIrq(void *p);
+// Simple macro functions to give a arduino-like functions to call
+// millis() reads the incremented systick variable
+// micros() reads the raw SysTick Count, and divides it by the number of
+// ticks per microsecond (WARN: This only uses the lower 32 bits of the SysTick)
+extern volatile uint32_t systick_millis;
+#define millis() (systick_millis)
+#define micros() (SysTick->CNT / SYSTICK_ONE_MICROSECOND)
 
 #endif // __BSP_H
