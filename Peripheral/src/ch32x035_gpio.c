@@ -571,7 +571,7 @@ void GPIO_IPD_Unused(void)
     GPIO_InitTypeDef GPIO_InitStructure = {0};
     uint32_t chip = 0;
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC, ENABLE);
-    chip =  *( uint32_t * )0x1FFFF704 & (~0x000000F1);
+    chip =  *( uint32_t * )0x1FFFF704 & (~0x000000F1u);
     switch(chip)
     {
         case 0x03510600:     //CH32X035C8T6
